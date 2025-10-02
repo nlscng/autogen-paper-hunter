@@ -3,6 +3,7 @@ from autogen_ext.models.openai import OpenAIChatCompletionClient
 import asyncio
 import os
 import arxiv
+from pprint import pprint
 
 def search_arxiv(query:str, max_results:int=5, sort_by:str='relevance'):
     """
@@ -48,3 +49,9 @@ async def main():
         ),
         model_client=model_client,
     )
+
+if __name__ == "__main__":
+    desc = "GAN papers"
+    papers = search_arxiv(desc, max_results=5, sort_by='relevance')
+    pprint(papers)
+    asyncio.run(main())
