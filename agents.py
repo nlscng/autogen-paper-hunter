@@ -2,6 +2,34 @@ from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 import asyncio
 import os
+import arxiv
+
+def search_arxiv(query:str, max_results:int=5, sort_by:str='relevance'):
+    """
+    Search for papers on arxiv.org using the arxiv API.
+    
+    Args: 
+        query (str): The search query.
+        max_results (int): The maximum number of results to return.
+        sort_by (str): The sorting criterion, either 'relevance' or 'latestUpdated'.
+    """
+    client = arxiv.Client()
+    search = arxiv.Search(
+        query=query,
+        max_results=max_results,
+        sort_by=arxiv.SortCriterion.Relevance if sort_by == 'relevance' else arxiv.SortCriterion.LastUpdatedDate
+    )
+    papers = []
+    for one_result in client.results(search):
+        papers.append({
+            'title': one_result.title,
+            'authors': [author.name for author in one_result.authors],
+            'summary': one_result.summary,
+            # 'published': one_result.published,
+            'id': one_result.entry_id,
+            'url': one_result.pdf_url
+        })
+    return papers
 
 async def main():
     model_client = OpenAIChatCompletionClient(
