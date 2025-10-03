@@ -1,5 +1,6 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_agentchat.teams import RoundRobinGroupChat
 import asyncio
 import os
 import arxiv
@@ -32,11 +33,11 @@ def search_arxiv(query:str, max_results:int=5, sort_by:str='relevance'):
         })
     return papers
 
-async def main():
+async def main(task:str="Find five of the most recent and popular papers for AI or machine learning advencements."):
     model_client = OpenAIChatCompletionClient(
         model='o4-mini',
         api_key=os.getenv('OPENAI_API_KEY'),
-        temperature=0.3
+        # temperature=0.3
     )
     arxiv_agent = AssistantAgent(
         name="ArxivAgent",
@@ -48,10 +49,39 @@ async def main():
             the query to in arxiv API format."""
         ),
         model_client=model_client,
+        tools=[search_arxiv],
+        reflect_on_tool_use=True
+    )
+    researcher_agent = AssistantAgent(
+        name="researcher",
+        system_message=(
+            """You are a researcher agent. Based on the papers provided by the arxiv
+            agent, you need to generate a markdown report that summarizes the papers.
+            Initially, you need to generate an introduction that describe the research area,
+            and then for each paper, you need to state the title, authors, and a brief 
+            summary, with a link to the paper, the problem the paper is trying to solve, 
+            and how they are solving it."""
+        ),
+        model_client=model_client,
     )
 
+    team = RoundRobinGroupChat(
+        participants=[arxiv_agent, researcher_agent],
+        max_turns=1,
+    )
+
+    ## Start the conversation
+    async for one_msg in team.run_stream(task=task):
+        print('-'*50)
+        pprint(one_msg)
+
+## Test the arxiv search function
+# if __name__ == "__main__":
+#     desc = "GAN papers"
+#     papers = search_arxiv(desc, max_results=5, sort_by='relevance')
+#     pprint(papers)
+#     asyncio.run(main())
+
 if __name__ == "__main__":
-    desc = "GAN papers"
-    papers = search_arxiv(desc, max_results=5, sort_by='relevance')
-    pprint(papers)
-    asyncio.run(main())
+    task = "Find five best papers on GAN for image generation."
+    asyncio.run(main(task=task))
