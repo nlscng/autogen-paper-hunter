@@ -1,6 +1,7 @@
 from autogen_agentchat.agents import AssistantAgent
 from autogen_ext.models.openai import OpenAIChatCompletionClient
 from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_agentchat.messages import TextMessage, ToolCallRequestEvent, ToolCallExecutionEvent
 import asyncio
 import os
 import arxiv
@@ -33,7 +34,8 @@ def search_arxiv(query:str, max_results:int=5, sort_by:str='relevance'):
         })
     return papers
 
-async def main(task:str="Find five of the most recent and popular papers for AI or machine learning advencements."):
+
+def get_team_config():
     model_client = OpenAIChatCompletionClient(
         model='o4-mini',
         api_key=os.getenv('OPENAI_API_KEY'),
@@ -65,15 +67,26 @@ async def main(task:str="Find five of the most recent and popular papers for AI 
         model_client=model_client,
     )
 
-    team = RoundRobinGroupChat(
+    team_config = RoundRobinGroupChat(
         participants=[arxiv_agent, researcher_agent],
-        max_turns=1,
+        max_turns=2,
     )
+    return team_config
 
+async def orchestrate(team_config, task:str="Find five of the most recent and popular papers for AI or machine learning advencements."):
     ## Start the conversation
-    async for one_msg in team.run_stream(task=task):
-        print('-'*50)
-        pprint(one_msg)
+    async for one_msg in team_config.run_stream(task=task):
+        print('-' * 80)
+        if isinstance(one_msg, TextMessage):
+            print(f'{one_msg.source}: {one_msg.content}')
+        elif isinstance(one_msg, ToolCallRequestEvent):
+            print(f'{one_msg.to_text()}')
+        elif isinstance(one_msg, ToolCallExecutionEvent):
+            print(f'{one_msg.to_text()}')
+
+async def main(task:str):
+    team_config = get_team_config()
+    await orchestrate(team_config, task=task)
 
 ## Test the arxiv search function
 # if __name__ == "__main__":
@@ -83,5 +96,5 @@ async def main(task:str="Find five of the most recent and popular papers for AI 
 #     asyncio.run(main())
 
 if __name__ == "__main__":
-    task = "Find five best papers on GAN for image generation."
+    task = "Find one best papers on GAN for image generation."
     asyncio.run(main(task=task))
