@@ -78,15 +78,20 @@ async def orchestrate(team_config, task:str="Find five of the most recent and po
     async for one_msg in team_config.run_stream(task=task):
         print('-' * 80)
         if isinstance(one_msg, TextMessage):
-            print(f'{one_msg.source}: {one_msg.content}')
+            print(message := f'{one_msg.source}: {one_msg.content}')
+            yield message
         elif isinstance(one_msg, ToolCallRequestEvent):
-            print(f'{one_msg.to_text()}')
+            print(message := f'{one_msg.to_text()}')
+            yield message
         elif isinstance(one_msg, ToolCallExecutionEvent):
-            print(f'{one_msg.to_text()}')
+            print(message := f'{one_msg.to_text()}')
+            yield message
 
 async def main(task:str):
     team_config = get_team_config()
-    await orchestrate(team_config, task=task)
+    # await orchestrate(team_config, task=task)
+    async for one_msg in orchestrate(team_config, task=task):
+        pass
 
 ## Test the arxiv search function
 # if __name__ == "__main__":
@@ -96,5 +101,5 @@ async def main(task:str):
 #     asyncio.run(main())
 
 if __name__ == "__main__":
-    task = "Find one best papers on GAN for image generation."
+    task = "Find five best papers on GAN for image generation."
     asyncio.run(main(task=task))
